@@ -1,0 +1,45 @@
+services:
+  squidex_mongo:
+    image: mongo:latest
+    container_name: squidex_mongo
+    volumes:
+      - squidex_mongo_data:/data/db
+    networks:
+      - squidex_net
+    restart: unless-stopped
+
+  squidex_app:
+    image: squidex/squidex:latest
+    container_name: squidex_app
+    ports:
+      - '8080:80'
+    env_file:
+      - .env
+    environment:
+      - URLS__BASEPATH=/squidex
+      - URLS__BASEURL=${SQUIDEX_PROTOCOL}://${SQUIDEX_DOMAIN}
+      - EVENTSTORE__MONGODB__CONFIGURATION=mongodb://squidex_mongo
+      - STORE__MONGODB__CONFIGURATION=mongodb://squidex_mongo
+      - IDENTITY__ADMINEMAIL=${SQUIDEX_ADMIN_EMAIL}
+      - IDENTITY__ADMINPASSWORD=${SQUIDEX_ADMIN_PASSWORD}
+      - IDENTITY__GOOGLECLIENT=
+      - IDENTITY__GOOGLESECRET=
+      - IDENTITY__GITHUBCLIENT=
+      - IDENTITY__GITHUBSECRET=
+      - IDENTITY__MICROSOFTCLIENT=
+      - IDENTITY__MICROSOFTSECRET=
+    depends_on:
+      - squidex_mongo
+    volumes:
+      - squidex_assets:/app/Assets
+    networks:
+      - squidex_net
+    restart: unless-stopped
+
+networks:
+  squidex_net:
+    driver: bridge
+
+volumes:
+  squidex_mongo_data:
+  squidex_assets:
