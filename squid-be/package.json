@@ -1,0 +1,61 @@
+{
+  "name": "squid-be",
+  "version": "0.0.1",
+  "description": "",
+  "homepage": "https://github.com/adbrum/squid-be#readme",
+  "bugs": {
+    "url": "https://github.com/adbrum/squid-be/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adbrum/squid-be.git"
+  },
+  "license": "MIT",
+  "main": "src/server.ts",
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "start": "node build/server.js",
+    "dev": "tsx watch src/server.ts"
+  },
+  "dependencies": {
+    "@graphql-tools/executor-http": "^2.0.3",
+    "@graphql-tools/stitch": "^9.4.26",
+    "@graphql-yoga/plugin-disable-introspection": "^2.17.1",
+    "axios": "^1.10.0",
+    "chalk": "^5.4.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.0",
+    "express": "^5.1.0",
+    "graphql": "^16.11.0",
+    "graphql-http": "^1.22.4",
+    "graphql-yoga": "^5.15.1",
+    "http-proxy-middleware": "^3.0.5",
+    "morgan": "^1.10.0",
+    "reflect-metadata": "^0.2.2",
+    "ts-node": "^10.9.2",
+    "type-graphql": "^2.0.0-rc.2",
+    "ua-parser-js": "^2.0.4",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/ua-parser-js": "^0.7.39",
+    "eslint": "^9.30.1",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.5.1",
+    "globals": "^16.3.0",
+    "prettier": "^3.6.2",
+    "tsc-alias": "^1.8.16",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.35.1",
+    "zod": "^3.25.67"
+  },
+  "engines": {
+    "node": ">=20.0"
+  }
+}
