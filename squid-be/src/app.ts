@@ -79,9 +79,9 @@ schemaReady.then(() => {
   setInterval(async () => {
     try {
       cachedSchema = await makeGatewayShema();
-      console.info('[schema] Refreshed successfully');
+      console.info('[SCHEMA] Refreshed successfully');
     } catch (err) {
-      console.error('[schema] Refresh failed, keeping previous schema:', err);
+      console.error('[SCHEMA] Refresh failed, keeping previous schema:', err);
     }
   }, intervalMs);
 });
