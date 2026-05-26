@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv';
 import http from 'http';
 import logger from 'morgan';
 import fs from 'fs';
+import type { GraphQLSchema } from 'graphql';
 import { createYoga } from 'graphql-yoga';
 import { stitchSchemas } from '@graphql-tools/stitch';
 
@@ -67,6 +68,24 @@ async function makeGatewayShema() {
   });
 }
 
+let cachedSchema: GraphQLSchema | null = null;
+
+const schemaReady = makeGatewayShema().then((s) => {
+  cachedSchema = s;
+});
+
+schemaReady.then(() => {
+  const intervalMs = envParser.SCHEMA_POLL_INTERVAL_MS;
+  setInterval(async () => {
+    try {
+      cachedSchema = await makeGatewayShema();
+      console.info('[schema] Refreshed successfully');
+    } catch (err) {
+      console.error('[schema] Refresh failed, keeping previous schema:', err);
+    }
+  }, intervalMs);
+});
+
 app.use(
   '/api/assets',
   createProxyMiddleware({
@@ -80,7 +99,10 @@ app.use(
 // GraphQL Yoga server
 
 const yoga = createYoga({
-  schema: makeGatewayShema(),
+  schema: async () => {
+    if (!cachedSchema) await schemaReady;
+    return cachedSchema!;
+  },
   graphqlEndpoint: '/graphql',
   logging: true,
   graphiql:

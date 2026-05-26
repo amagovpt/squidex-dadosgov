@@ -15,7 +15,7 @@ const envSchema = z.object({
   CLIENT_ID: z.string().default(''),
   CLIENT_SECRET: z.string().default(''),
   APP_NAME: z.string().default(''),
-  
+  SCHEMA_POLL_INTERVAL_MS: z.coerce.number().optional().default(300_000),
 });
 
 /**
