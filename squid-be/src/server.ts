@@ -1,4 +1,3 @@
-import 'tsconfig-paths/register';
 import 'dotenv/config';
 import { server, initGateway } from './app';
 import { envParser } from './lib/envParser';
