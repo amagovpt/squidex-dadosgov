@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
 
   squidex_app:
-    image: squidex/squidex:7.12.1
+    image: squidex/squidex:7
     container_name: squidex_app
     ports:
       - '8080:80'
