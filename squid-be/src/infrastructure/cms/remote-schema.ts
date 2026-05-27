@@ -12,7 +12,11 @@ export interface GatewayContext {
 
 async function withRetry<T>(
   fn: () => Promise<T>,
-  { retries = 3, baseDelayMs = 500 }: { retries?: number; baseDelayMs?: number } = {},
+  {
+    retries = 3,
+    baseDelayMs = 500,
+    maxDelayMs = 30_000,
+  }: { retries?: number; baseDelayMs?: number; maxDelayMs?: number } = {},
 ): Promise<T> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -21,7 +25,7 @@ async function withRetry<T>(
     } catch (error) {
       lastError = error;
       if (attempt === retries) break;
-      const delay = baseDelayMs * 2 ** attempt;
+      const delay = Math.min(baseDelayMs * 2 ** attempt, maxDelayMs);
       console.warn(`Retry ${attempt + 1}/${retries} in ${delay}ms:`, error);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
@@ -67,6 +71,18 @@ export async function getToken(): Promise<string> {
       }
 
       const { access_token, expires_in } = await res.json();
+
+      // Guard against a 200 with an unexpected body shape, which would
+      // otherwise cache an undefined token and a NaN expiry that never expires
+      // (sending "Bearer undefined" to Squidex forever).
+      if (
+        typeof access_token !== 'string' ||
+        access_token.length === 0 ||
+        typeof expires_in !== 'number' ||
+        !Number.isFinite(expires_in)
+      ) {
+        throw new Error('Token endpoint returned an unexpected response shape');
+      }
 
       tokenCache = {
         token: access_token,

@@ -1,32 +1,89 @@
 import type { Plugin } from 'graphql-yoga';
 import {
   GraphQLError,
+  Kind,
   type ASTVisitor,
-  type FieldNode,
+  type FragmentDefinitionNode,
+  type OperationDefinitionNode,
+  type SelectionSetNode,
   type ValidationContext,
 } from 'graphql';
 
 /**
- * Validation rule that rejects queries whose selection-set nesting exceeds
- * `maxDepth`. Guards the public gateway against deeply-nested / cyclic queries
- * that would otherwise be an easy DoS vector. No external dependency.
+ * Computes the maximum Field-nesting depth of a selection set, resolving
+ * fragment spreads and inline fragments (which are transparent and add no
+ * level). `visited` guards against cyclic fragments so a malicious cyclic
+ * document cannot cause infinite recursion here.
+ */
+function selectionSetDepth(
+  selectionSet: SelectionSetNode,
+  fragments: Record<string, FragmentDefinitionNode>,
+  visited: Set<string>,
+): number {
+  let max = 0;
+  for (const selection of selectionSet.selections) {
+    switch (selection.kind) {
+      case Kind.FIELD: {
+        const childDepth = selection.selectionSet
+          ? selectionSetDepth(selection.selectionSet, fragments, visited)
+          : 0;
+        max = Math.max(max, 1 + childDepth);
+        break;
+      }
+      case Kind.INLINE_FRAGMENT: {
+        // Inline fragments do not add a nesting level.
+        max = Math.max(
+          max,
+          selectionSetDepth(selection.selectionSet, fragments, visited),
+        );
+        break;
+      }
+      case Kind.FRAGMENT_SPREAD: {
+        const name = selection.name.value;
+        if (visited.has(name)) break; // cyclic fragment — stop descending
+        const fragment = fragments[name];
+        if (fragment) {
+          visited.add(name);
+          max = Math.max(
+            max,
+            selectionSetDepth(fragment.selectionSet, fragments, visited),
+          );
+          visited.delete(name);
+        }
+        break;
+      }
+    }
+  }
+  return max;
+}
+
+/**
+ * Validation rule that rejects queries whose Field nesting exceeds `maxDepth`,
+ * counting depth across fragment spreads and inline fragments so the DoS guard
+ * cannot be bypassed by hiding nesting inside fragments. No external dependency.
  */
 function depthLimitRule(maxDepth: number) {
   return (context: ValidationContext): ASTVisitor => {
+    const document = context.getDocument();
+    const fragments: Record<string, FragmentDefinitionNode> = {};
+    for (const def of document.definitions) {
+      if (def.kind === Kind.FRAGMENT_DEFINITION) {
+        fragments[def.name.value] = def;
+      }
+    }
+
     return {
-      Field(node: FieldNode, _key, _parent, path, ancestors) {
-        // Count how many Field nodes sit above this one in the AST path.
-        let depth = 0;
-        for (const ancestor of ancestors) {
-          if (
-            ancestor &&
-            !Array.isArray(ancestor) &&
-            (ancestor as FieldNode).kind === 'Field'
-          ) {
-            depth++;
-          }
-        }
-        if (depth >= maxDepth) {
+      OperationDefinition(node: OperationDefinitionNode) {
+        // Skip introspection operations: they are deep by design (the standard
+        // IDE introspection query nests ~12 levels), bounded, and disabled in
+        // production. Counting them would break GraphiQL in development.
+        const isIntrospection = node.selectionSet.selections.every(
+          (sel) => sel.kind === Kind.FIELD && sel.name.value.startsWith('__'),
+        );
+        if (isIntrospection) return;
+
+        const depth = selectionSetDepth(node.selectionSet, fragments, new Set());
+        if (depth > maxDepth) {
           context.reportError(
             new GraphQLError(
               `Query exceeds maximum allowed depth of ${maxDepth}.`,

@@ -249,7 +249,8 @@ O formato do `CLIENT_ID` usado pelo squid-be é `<app>:<client>` (neste caso `da
 ```env
 NODE_ENV=production
 PORT=3333
-FRONTEND_ORIGIN="https://<FRONTEND_HOST>:<FRONTEND_PORT>"   # lista separada por vírgulas
+FRONTEND_ORIGIN="https://<FRONTEND_HOST>:<FRONTEND_PORT>"   # lista separada por vírgulas; OBRIGATÓRIO em produção
+TRUST_PROXY=1                       # nº de proxies à frente (ex.: 2 para F5 + nginx) — IP real p/ rate-limit
 NODE_TLS_REJECT_UNAUTHORIZED='0'    # ver aviso abaixo — só para cert self-signed
 
 CMS_URL="https://<HOST_IP>"          # SEM o sufixo /squidex (o código já o acrescenta)
@@ -260,13 +261,13 @@ CLIENT_SECRET="<secret-gerado-pelo-squidex>"
 APP_NAME="dados-gov"
 
 # Tuning do gateway (têm defaults sensatos)
-GRAPHQL_MAX_DEPTH=12        # profundidade máxima de query GraphQL (anti-DoS)
+GRAPHQL_MAX_DEPTH=12        # profundidade máxima de query GraphQL (anti-DoS); >= 1
 SCHEMA_REFRESH_MS=300000    # re-introspeção periódica do schema; 0 desativa
 ```
 
 > **Aviso de segurança:** `NODE_TLS_REJECT_UNAUTHORIZED='0'` desativa a verificação TLS para **todas** as chamadas outbound do processo, não apenas o Squidex. Em produção, prefira um certificado de uma CA real (Let's Encrypt) no Squidex e deixe esta flag por definir.
 
-> As variáveis obrigatórias (`CMS_URL`, `CLIENT_ID`, `CLIENT_SECRET`, `APP_NAME`) são validadas no arranque — se faltar alguma, o processo termina com uma mensagem clara.
+> As variáveis obrigatórias (`CMS_URL`, `CLIENT_ID`, `CLIENT_SECRET`, `APP_NAME`, e `FRONTEND_ORIGIN` em produção) são validadas no arranque — se faltar alguma, o processo termina com uma mensagem clara. Variáveis numéricas em branco usam o default; valores inválidos (ex.: `GRAPHQL_MAX_DEPTH=0` ou não-numérico) abortam o arranque.
 
 **Ciladas comuns:**
 

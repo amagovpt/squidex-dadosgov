@@ -21,11 +21,16 @@ import { setGatewayReady } from '@lib/gatewayState';
 import { useDisableIntrospection } from '@graphql-yoga/plugin-disable-introspection';
 import { envParser } from '@lib/envParser';
 
-const { CMS_URL, NODE_ENV, GRAPHQL_MAX_DEPTH, SCHEMA_REFRESH_MS } = envParser;
+const { CMS_URL, NODE_ENV, GRAPHQL_MAX_DEPTH, SCHEMA_REFRESH_MS, TRUST_PROXY } =
+  envParser;
 const isProduction = NODE_ENV === 'production';
 
 const app = express();
 const server = http.createServer(app);
+
+// Trust proxy (correct client IP for rate-limiting and secure cookies). The
+// hop count must match the number of reverse proxies in front of the gateway.
+app.set('trust proxy', TRUST_PROXY);
 
 // Request logging to stdout (let the container runtime handle rotation):
 // machine-parseable "combined" format in production, human-readable colored
@@ -36,20 +41,15 @@ if (isProduction) {
   app.use(loggingMiddleware);
 }
 
-// Middleware setup
 app.use(cors);
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
 
-// Trust proxy (correct client IP for rate-limiting and secure cookies).
-app.set('trust proxy', 1);
-
-// Routes
-app.use('/api', routes);
-
-// Asset passthrough to Squidex.
+// Asset passthrough to Squidex — MUST be registered before the body parsers,
+// otherwise express.json()/urlencoded() drain the request stream and proxied
+// uploads (POST/PUT) hang with an empty body. A generous limiter bounds abuse
+// of the proxy without throttling normal image-heavy browsing.
 app.use(
   '/api/assets',
+  rateLimit({ windowMs: 60_000, max: 600 }),
   createProxyMiddleware({
     target: CMS_URL,
     changeOrigin: true,
@@ -57,6 +57,13 @@ app.use(
     pathRewrite: (path) => `/squidex/api/assets/dados-gov${path}`,
   }),
 );
+
+// Body parsers (after the asset proxy so uploads stream through untouched).
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+// Routes
+app.use('/api', routes);
 
 // --- GraphQL gateway schema (cached + periodically refreshed) ---------------
 
@@ -84,15 +91,25 @@ export async function initGateway(): Promise<void> {
   setGatewayReady(true);
 
   if (SCHEMA_REFRESH_MS > 0) {
-    const timer = setInterval(async () => {
-      try {
-        gatewaySchema = await buildGatewaySchema();
-        console.log('Gateway schema refreshed');
-      } catch (error) {
-        console.error('Schema refresh failed, keeping previous schema:', error);
-      }
-    }, SCHEMA_REFRESH_MS);
-    timer.unref();
+    // Recursive setTimeout (not setInterval) so a slow introspection can never
+    // overlap with the next refresh and clobber a newer schema.
+    const scheduleRefresh = () => {
+      const timer = setTimeout(async () => {
+        try {
+          gatewaySchema = await buildGatewaySchema();
+          console.log('Gateway schema refreshed');
+        } catch (error) {
+          console.error(
+            'Schema refresh failed, keeping previous schema:',
+            error,
+          );
+        } finally {
+          scheduleRefresh();
+        }
+      }, SCHEMA_REFRESH_MS);
+      timer.unref();
+    };
+    scheduleRefresh();
   }
 }
 
@@ -112,8 +129,17 @@ const yoga = createYoga<GatewayContext>({
     useDepthLimit(GRAPHQL_MAX_DEPTH),
   ],
   // Resolve a fresh (cached) token per request so delegation to Squidex always
-  // carries a valid Authorization header.
-  context: async ({ request }) => ({ request, token: await getToken() }),
+  // carries a valid Authorization header. If the token endpoint is briefly
+  // unavailable, still serve the request (local fields like `heartbeat` work;
+  // Squidex-backed fields surface their own auth error) instead of failing it.
+  context: async ({ request }) => {
+    try {
+      return { request, token: await getToken() };
+    } catch (error) {
+      console.error('Token unavailable; serving request without auth:', error);
+      return { request };
+    }
+  },
 });
 
 app.use(

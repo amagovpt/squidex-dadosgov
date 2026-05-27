@@ -15,11 +15,18 @@ async function start() {
     process.exit(1);
   });
 
-  server.listen(PORT, () => console.log(`Server started on ${host}:${PORT}`));
+  server.listen(PORT, host, () =>
+    console.log(`Server started on ${host}:${PORT}`),
+  );
 }
 
 function shutdown(signal: string) {
   console.log(`${signal} received, shutting down gracefully...`);
+  // A signal during the boot window (before listen) must not call close() on a
+  // server that was never listening — that errors out with a non-zero exit.
+  if (!server.listening) {
+    process.exit(0);
+  }
   server.close((err) => {
     if (err) {
       console.error('Error during shutdown:', err);
