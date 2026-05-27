@@ -247,9 +247,10 @@ O formato do `CLIENT_ID` usado pelo squid-be é `<app>:<client>` (neste caso `da
 ### 4.1 `.env`
 
 ```env
+NODE_ENV=production
 PORT=3333
-FRONTEND_ORIGIN="https://<FRONTEND_HOST>:<FRONTEND_PORT>"
-NODE_TLS_REJECT_UNAUTHORIZED='0'    # aceitar cert self-signed do Squidex
+FRONTEND_ORIGIN="https://<FRONTEND_HOST>:<FRONTEND_PORT>"   # lista separada por vírgulas
+NODE_TLS_REJECT_UNAUTHORIZED='0'    # ver aviso abaixo — só para cert self-signed
 
 CMS_URL="https://<HOST_IP>"          # SEM o sufixo /squidex (o código já o acrescenta)
 API_KEY=""
@@ -257,7 +258,15 @@ API_KEY=""
 CLIENT_ID="dados-gov:api-dados-gov"
 CLIENT_SECRET="<secret-gerado-pelo-squidex>"
 APP_NAME="dados-gov"
+
+# Tuning do gateway (têm defaults sensatos)
+GRAPHQL_MAX_DEPTH=12        # profundidade máxima de query GraphQL (anti-DoS)
+SCHEMA_REFRESH_MS=300000    # re-introspeção periódica do schema; 0 desativa
 ```
+
+> **Aviso de segurança:** `NODE_TLS_REJECT_UNAUTHORIZED='0'` desativa a verificação TLS para **todas** as chamadas outbound do processo, não apenas o Squidex. Em produção, prefira um certificado de uma CA real (Let's Encrypt) no Squidex e deixe esta flag por definir.
+
+> As variáveis obrigatórias (`CMS_URL`, `CLIENT_ID`, `CLIENT_SECRET`, `APP_NAME`) são validadas no arranque — se faltar alguma, o processo termina com uma mensagem clara.
 
 **Ciladas comuns:**
 
@@ -265,29 +274,11 @@ APP_NAME="dados-gov"
 - **`CMS_URL` em HTTP** quando o `URLS__BASEURL` do Squidex é HTTPS → funciona para o token endpoint, mas o issuer do JWT será `https://...` e pode causar problemas noutras chamadas. Manter HTTPS aqui.
 - **`CLIENT_SECRET` desalinhado** com o que o Squidex gerou → `HTTP 401 invalid_client`.
 
-### 4.2 Volume `access.log`
+### 4.2 Logging
 
-O `docker-compose.yml` do squid-be faz:
+O squid-be escreve os logs para **stdout** (formato `combined` em produção, colorido em desenvolvimento). A rotação é feita pelo driver `json-file` do Docker, já configurado no `docker-compose.yml` (`max-size: 10m`, `max-file: 5`). **Não** há bind mount de `access.log` — o footgun antigo do `EISDIR` deixou de existir.
 
-```yaml
-volumes:
-  - ./access.log:/app/access.log
-```
-
-Se `./access.log` **não existir como ficheiro no host** antes do primeiro `docker compose up`, o Docker cria-o como **diretório** e a app rebenta com:
-
-```
-Error: EISDIR: illegal operation on a directory, open './access.log'
-```
-
-Antes de iniciar, criar o ficheiro vazio:
-
-```bash
-cd /opt/udata/squid-be
-touch access.log
-```
-
-Se o diretório já foi criado: `docker compose down && rm -rf access.log && touch access.log && docker compose up -d`.
+Ver logs: `docker compose logs -f --tail=30`.
 
 ### 4.3 Arrancar
 
@@ -314,10 +305,15 @@ curl -sS -k -X POST https://<HOST_IP>/squidex/identity-server/connect/token \
   | head -c 120
 # esperado: {"access_token":"...","expires_in":...,"token_type":"Bearer",...}
 
-# 3. squid-be a servir GraphQL
+# 3. squid-be vivo e pronto
+curl -sS http://127.0.0.1:3333/api/healthcheck   # {"status":"Server running"}
+curl -sS http://127.0.0.1:3333/api/readiness     # {"status":"ready"} (503 enquanto não carrega o schema)
+
+# 4. squid-be a servir GraphQL
 curl -sS http://127.0.0.1:3333/graphql -X POST \
   -H "Content-Type: application/json" \
-  -d '{"query":"{ __schema { queryType { name } } }"}'
+  -d '{"query":"{ heartbeat }"}'
+# esperado: {"data":{"heartbeat":"OK"}}
 ```
 
 ---
@@ -326,7 +322,8 @@ curl -sS http://127.0.0.1:3333/graphql -X POST \
 
 | Sintoma | Causa provável | Onde corrigir |
 |---|---|---|
-| `EISDIR: illegal operation on a directory, open './access.log'` | Bind mount criou diretório em vez de ficheiro | `touch access.log` no host antes do primeiro `up` |
+| `Invalid environment configuration` no arranque | Falta uma variável obrigatória (`CMS_URL`/`CLIENT_ID`/`CLIENT_SECRET`/`APP_NAME`) | Preencher o `.env` |
+| `/api/readiness` devolve `503` | Schema ainda não carregou (Squidex em baixo / sem schemas publicados) | Ver logs; confirmar Squidex e schema publicado |
 | `HTTP 502 Bad Gateway` ao chamar token | nginx sem server block para `/squidex/`, cai no default (serviço ausente) | Adicionar server block em `nginx.conf` |
 | Login no admin UI pisca e volta | Cookies `Secure` emitidos (BASEURL=https) mas a aceder por HTTP | Aceder via `https://<HOST_IP>/squidex/` |
 | `HTTP 401 invalid_client` | `CLIENT_ID`/`CLIENT_SECRET` errados, ou app/client não existe | Recriar via admin UI e copiar o secret |

@@ -7,11 +7,16 @@ services:
       - .env
     ports:
       - '3333:3333'
-    volumes:
-      - ./access.log:/app/access.log
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+    # Logs go to stdout; the json-file driver rotates them so they never grow
+    # unbounded (replaces the old ./access.log bind mount).
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
     networks:
       - default
       - squidex_net
