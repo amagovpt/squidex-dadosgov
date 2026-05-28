@@ -12,7 +12,7 @@ services:
   squidex_app:
     # TODO: pin to a specific Squidex release tag (e.g. squidex/squidex:7.x)
     # once the target version is confirmed; `latest` makes deploys non-reproducible.
-    image: squidex/squidex:latest
+    image: squidex/squidex:7.23.0
     container_name: squidex_app
     ports:
       - '8080:80'
