@@ -31,6 +31,7 @@ services:
       - IDENTITY__GITHUBSECRET=
       - IDENTITY__MICROSOFTCLIENT=
       - IDENTITY__MICROSOFTSECRET=
+      - PLUGINS__0=
     depends_on:
       - squidex_mongo
     volumes:
