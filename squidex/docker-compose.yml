@@ -1,7 +1,7 @@
 services:
   squidex_mongo:
     # Pinned major for reproducible deploys (Squidex supports MongoDB 6/7).
-    image: mongo:7
+    image: mongo:latest
     container_name: squidex_mongo
     volumes:
       - squidex_mongo_data:/data/db
