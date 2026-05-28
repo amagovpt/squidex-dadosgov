@@ -1,6 +1,7 @@
 services:
   squidex_mongo:
-    image: mongo:latest
+    # Pinned major for reproducible deploys (Squidex supports MongoDB 6/7).
+    image: mongo:7
     container_name: squidex_mongo
     volumes:
       - squidex_mongo_data:/data/db
@@ -9,7 +10,9 @@ services:
     restart: unless-stopped
 
   squidex_app:
-    image: squidex/squidex:7
+    # TODO: pin to a specific Squidex release tag (e.g. squidex/squidex:7.x)
+    # once the target version is confirmed; `latest` makes deploys non-reproducible.
+    image: squidex/squidex:latest
     container_name: squidex_app
     ports:
       - '8080:80'
@@ -28,6 +31,7 @@ services:
       - IDENTITY__GITHUBSECRET=
       - IDENTITY__MICROSOFTCLIENT=
       - IDENTITY__MICROSOFTSECRET=
+      - PLUGINS__0=
     depends_on:
       - squidex_mongo
     volumes:
