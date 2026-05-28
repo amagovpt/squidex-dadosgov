@@ -28,7 +28,7 @@ services:
       - IDENTITY__GOOGLESECRET=
       - IDENTITY__GITHUBSECRET=
       - IDENTITY__MICROSOFTSECRET=
-      - PLUGINS__0=
+      - PLUGINS__0=""
     depends_on:
       - squidex_mongo
     volumes:
