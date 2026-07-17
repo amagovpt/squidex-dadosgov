@@ -23,7 +23,7 @@ export async function getToken(): Promise<string> {
 
   try {
     const res = await fetch(
-      CMS_URL + '/squidex/identity-server/connect/token',
+      CMS_URL + '/identity-server/connect/token',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -60,7 +60,7 @@ export async function getRemoteSchema() {
       throw new Error('CMS_URL environment variable is not defined');
     }
     const remoteExecutor = buildHTTPExecutor({
-      endpoint: CMS_URL + `/squidex/api/content/${APP_NAME}/graphql`,
+      endpoint: CMS_URL + `/api/content/${APP_NAME}/graphql`,
       headers: { Authorization: `Bearer ${await getToken()}` },
     });
 
