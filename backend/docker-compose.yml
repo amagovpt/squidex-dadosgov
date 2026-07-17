@@ -1,8 +1,11 @@
+name: squidex-dadosgov
+
 services:
-  app:
+  squidex-backend:
     build:
       context: .
       dockerfile: Dockerfile
+    image: squidex-dadosgov-backend:latest
     env_file:
       - .env
     ports:
