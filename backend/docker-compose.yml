@@ -15,6 +15,7 @@ services:
     networks:
       - default
       - squidex_net
+    image: squidex-dadosgov-backend:latest
 
 networks:
   default:
