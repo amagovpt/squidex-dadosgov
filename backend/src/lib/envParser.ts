@@ -16,6 +16,8 @@ const envSchema = z.object({
   CLIENT_SECRET: z.string().default(''),
   APP_NAME: z.string().default(''),
   SCHEMA_POLL_INTERVAL_MS: z.coerce.number().optional().default(300_000),
+  SCHEMA_FETCH_RETRIES: z.coerce.number().optional().default(5),
+  SCHEMA_FETCH_RETRY_DELAY_MS: z.coerce.number().optional().default(1_000),
 });
 
 /**
