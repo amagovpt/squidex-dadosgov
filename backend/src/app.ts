@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv';
 import http from 'http';
 import logger from 'morgan';
 import fs from 'fs';
+import path from 'path';
 import type { GraphQLSchema } from 'graphql';
 import { createYoga } from 'graphql-yoga';
 import { stitchSchemas } from '@graphql-tools/stitch';
@@ -26,9 +27,14 @@ const app = express();
 const server = http.createServer(app);
 
 // Logger to file
+const logDir = envParser.LOG_DIR;
+fs.mkdirSync(logDir, { recursive: true });
+
 app.use(
   logger('common', {
-    stream: fs.createWriteStream('./access.log', { flags: 'a' }),
+    stream: fs.createWriteStream(path.join(logDir, 'access.log'), {
+      flags: 'a',
+    }),
   }),
 );
 

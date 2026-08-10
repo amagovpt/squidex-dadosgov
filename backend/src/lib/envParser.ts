@@ -8,6 +8,7 @@ const envSchema = z.object({
     .default('development'),
   PORT: z.coerce.number().optional().default(3333),
   FRONTEND_ORIGIN: z.string(),
+  LOG_DIR: z.string().optional().default('./logs'),
 
   //CMS
   CMS_URL: z.string().default(''),
