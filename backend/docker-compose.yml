@@ -1,8 +1,11 @@
+name: squidex-dadosgov
+
 services:
-  app:
+  squidex-backend:
     build:
       context: .
       dockerfile: Dockerfile
+    image: squidex-dadosgov-backend:latest
     env_file:
       - .env
     ports:
@@ -14,11 +17,7 @@ services:
       - NODE_ENV=production
     networks:
       - default
-      - squidex_net
 
 networks:
   default:
     driver: bridge
-  squidex_net:
-    external: true
-    name: squidex_squidex_net

@@ -92,7 +92,7 @@ app.use(
     target: CMS_URL,
     changeOrigin: true,
     secure: false,
-    pathRewrite: (path) => `/squidex/api/assets/dados-gov${path}`,
+    pathRewrite: (path) => `/api/assets/dados-gov${path}`,
   }),
 );
 
