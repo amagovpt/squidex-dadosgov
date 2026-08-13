@@ -19,7 +19,7 @@ services:
     env_file:
       - .env
     environment:
-      - URLS__BASEPATH=/squidex
+      - URLS__BASEPATH=/
       - URLS__BASEURL=${SQUIDEX_PROTOCOL}://${SQUIDEX_DOMAIN}
       - EVENTSTORE__MONGODB__CONFIGURATION=mongodb://squidex_mongo
       - STORE__MONGODB__CONFIGURATION=mongodb://squidex_mongo
